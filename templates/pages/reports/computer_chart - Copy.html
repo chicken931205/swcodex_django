@@ -1,0 +1,286 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block content %}
+
+<div class="container-fluid mt-5">
+    <h1 class="mb-4">Computer Model Deployments</h1>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <select id="manufacturer-filter" class="form-select mb-2">
+                <option value="all">All Manufacturers</option>
+            </select>
+        </div>
+        <div class="col-md-9">
+            <button id="sort-ascending" class="btn btn-outline-primary me-2">Sort Ascending</button>
+            <button id="sort-descending" class="btn btn-outline-primary me-2">Sort Descending</button>
+            <button id="sort-reset" class="btn btn-outline-secondary">Reset</button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-8">
+            <div id="bar-chart" class="rounded p-4 bg-white"></div>
+        </div>
+        <div class="col-md-4">
+            <div id="donut-chart" class="rounded p-4 bg-white"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bar { fill: #6c5ce7; transition: all 0.3s ease; }
+    .bar:hover { fill: #fd79a8; }
+    .axis-label { font-size: 14px; fill: #2d3436; }
+    .tick text { font-size: 12px; fill: #636e72; }
+    .tick line { stroke: #b2bec3; }
+    .domain { stroke: #b2bec3; }
+    .donut-slice { transition: opacity 0.3s ease; }
+    .donut-slice:hover { opacity: 0.8; }
+    .donut-label { font-size: 12px; fill: #2d3436; }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+    // Parse the data passed from Django
+    const data = JSON.parse('{{ data|safe }}');
+    let filteredData = [...data];
+    let sortedData = [...data];
+
+    // Set up the bar chart dimensions
+    const barMargin = {top: 40, right: 40, bottom: 60, left: 180};
+    const barWidth = 700 - barMargin.left - barMargin.right;
+    const barHeight = 1200 - barMargin.top - barMargin.bottom;
+
+    // Create the bar chart SVG element
+    const barSvg = d3.select("#bar-chart")
+        .append("svg")
+        .attr("width", barWidth + barMargin.left + barMargin.right)
+        .attr("height", barHeight + barMargin.top + barMargin.bottom)
+        .append("g")
+        .attr("transform", `translate(${barMargin.left},${barMargin.top})`);
+
+    // Set up scales for bar chart
+    const x = d3.scaleLinear().range([0, barWidth]);
+    const y = d3.scaleBand().range([0, barHeight]).padding(0.2);
+
+    // Create axes for bar chart
+    const xAxis = barSvg.append("g")
+        .attr("transform", `translate(0,${barHeight})`)
+        .call(d3.axisBottom(x).ticks(5));
+
+    const yAxis = barSvg.append("g")
+        .call(d3.axisLeft(y));
+
+    // Add axis labels for bar chart
+    barSvg.append("text")
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle")
+        .attr("x", barWidth / 2)
+        .attr("y", barHeight + barMargin.bottom - 10)
+        .text("Number of Deployments");
+
+    barSvg.append("text")
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -barMargin.left + 50)
+        .attr("x", -barHeight / 2)
+        .text("Computer Model");
+
+    // Set up the donut chart dimensions
+    const donutWidth = 300;
+    const donutHeight = 300;
+    const donutRadius = Math.min(donutWidth, donutHeight) / 2;
+
+    // Create the donut chart SVG element
+    const donutSvg = d3.select("#donut-chart")
+        .append("svg")
+        .attr("width", donutWidth)
+        .attr("height", donutHeight)
+        .append("g")
+        .attr("transform", `translate(${donutWidth / 2},${donutHeight / 2})`);
+
+    // Set up the color scale for the donut chart
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // Create the pie layout
+    const pie = d3.pie()
+        .value(d => d.deployment_count)
+        .sort(null);
+
+    // Create the arc generator
+    const arc = d3.arc()
+        .innerRadius(donutRadius * 0.6)
+        .outerRadius(donutRadius);
+
+    // Populate manufacturer filter
+    const manufacturers = ['all', ...new Set(data.map(d => d.manufacturer))];
+    const manufacturerSelect = document.getElementById('manufacturer-filter');
+    manufacturers.forEach(manufacturer => {
+        const option = document.createElement('option');
+        option.value = manufacturer;
+        option.textContent = manufacturer === 'all' ? 'All Manufacturers' : manufacturer;
+        manufacturerSelect.appendChild(option);
+    });
+
+    // Function to update the bar chart
+    function updateBarChart(newData) {
+        // Update domains
+        x.domain([0, d3.max(newData, d => d.deployment_count)]);
+        y.domain(newData.map(d => d.model_name));
+
+        // Update x-axis
+        xAxis.transition().duration(750).call(d3.axisBottom(x).ticks(5));
+
+        // Update y-axis
+        yAxis.transition().duration(750).call(d3.axisLeft(y));
+
+        // Update bars
+        const bars = barSvg.selectAll(".bar")
+            .data(newData, d => d.model_name);
+
+        bars.enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("y", d => y(d.model_name))
+            .attr("height", y.bandwidth())
+            .attr("x", 0)
+            .attr("width", 0)
+            .attr("rx", 4)
+            .attr("ry", 4)
+        .merge(bars)
+            .transition()
+            .duration(750)
+            .attr("y", d => y(d.model_name))
+            .attr("width", d => x(d.deployment_count));
+
+        bars.exit()
+            .transition()
+            .duration(750)
+            .attr("width", 0)
+            .remove();
+
+        // Update labels
+        const labels = barSvg.selectAll(".label")
+            .data(newData, d => d.model_name);
+
+        labels.enter()
+            .append("text")
+            .attr("class", "label")
+            .attr("x", d => x(d.deployment_count) + 5)
+            .attr("y", d => y(d.model_name) + y.bandwidth() / 2)
+            .attr("dy", "0.35em")
+            .attr("opacity", 0)
+            .text(d => d.deployment_count)
+        .merge(labels)
+            .transition()
+            .duration(750)
+            .attr("x", d => x(d.deployment_count) + 5)
+            .attr("y", d => y(d.model_name) + y.bandwidth() / 2)
+            .attr("opacity", 1)
+            .text(d => d.deployment_count);
+
+        labels.exit()
+            .transition()
+            .duration(750)
+            .attr("opacity", 0)
+            .remove();
+    }
+
+    // Function to update the donut chart
+    function updateDonutChart(newData) {
+        // Generate the pie slices
+        const pieData = pie(newData);
+
+        // Update the donut slices
+        const slices = donutSvg.selectAll(".donut-slice")
+            .data(pieData, d => d.data.model_name);
+
+        slices.enter()
+            .append("path")
+            .attr("class", "donut-slice")
+            .attr("fill", (d, i) => color(i))
+            .attr("d", arc)
+            .each(function(d) { this._current = d; })
+        .merge(slices)
+            .transition()
+            .duration(750)
+            .attrTween("d", function(d) {
+                const interpolate = d3.interpolate(this._current, d);
+                this._current = interpolate(0);
+                return t => arc(interpolate(t));
+            });
+
+        slices.exit()
+            .transition()
+            .duration(750)
+            .attrTween("d", function(d) {
+                const interpolate = d3.interpolate(this._current, {startAngle: d.startAngle, endAngle: d.startAngle});
+                return t => arc(interpolate(t));
+            })
+            .remove();
+
+        // Update the labels
+        const labels = donutSvg.selectAll(".donut-label")
+            .data(pieData, d => d.data.model_name);
+
+        labels.enter()
+            .append("text")
+            .attr("class", "donut-label")
+            .attr("transform", d => `translate(${arc.centroid(d)})`)
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "middle")
+            .text(d => d.data.model_name)
+            .style("opacity", 0)
+        .merge(labels)
+            .transition()
+            .duration(750)
+            .attr("transform", d => `translate(${arc.centroid(d)})`)
+            .style("opacity", 1)
+            .text(d => d.data.model_name);
+
+        labels.exit()
+            .transition()
+            .duration(750)
+            .style("opacity", 0)
+            .remove();
+    }
+
+    // Function to update both charts
+    function updateCharts(newData) {
+        updateBarChart(newData);
+        updateDonutChart(newData);
+    }
+
+    // Initial chart render
+    updateCharts(data);
+
+    // Filtering function
+    function filterData() {
+        const selectedManufacturer = manufacturerSelect.value;
+        filteredData = selectedManufacturer === 'all' 
+            ? data 
+            : data.filter(d => d.manufacturer === selectedManufacturer);
+        sortedData = [...filteredData];
+        updateCharts(filteredData);
+    }
+
+    // Sorting functions
+    function sortData(order) {
+        sortedData.sort((a, b) => order === 'asc' 
+            ? a.deployment_count - b.deployment_count
+            : b.deployment_count - a.deployment_count
+        );
+        updateCharts(sortedData);
+    }
+
+    // Event listeners
+    manufacturerSelect.addEventListener('change', filterData);
+    document.getElementById('sort-ascending').addEventListener('click', () => sortData('asc'));
+    document.getElementById('sort-descending').addEventListener('click', () => sortData('desc'));
+    document.getElementById('sort-reset').addEventListener('click', () => {
+        sortedData = [...filteredData];
+        updateCharts(sortedData);
+    });
+</script>
+
+{% endblock %}

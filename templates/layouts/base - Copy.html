@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+
+<head>
+  <title>Datta Able - {% block title %}Most Complete Bootstrap Admin Template{% endblock title %}</title>
+  {% include 'includes/head.html' %}
+  {% block style %}
+  <!-- Favicon icon -->
+  <link rel="icon" href="{% static 'assets/images/favicon.ico' %}" type="image/x-icon">
+  <!-- fontawesome icon -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/fontawesome/css/fontawesome-all.min.css' %}">
+  <!-- animation css -->
+  <link rel="stylesheet" href="{% static 'assets/css/plugins/animate.min.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/plugins/perfect-scrollbar.css' %}">
+  {% block extrastyle %}{% endblock extrastyle %}
+  <!-- vendor css -->
+  <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
+  <!-- -->
+  {% endblock style %}
+</head>
+
+<body class="{% block body %}{% endblock body %}">
+
+  {% block pre_loader %}
+  {% include 'includes/pre-loader.html' %}
+  {% endblock pre_loader %}
+
+  {% block sidebar %}
+  {% include 'includes/sidebar.html' %}
+  {% endblock sidebar %}
+
+  {% block header %}
+  {% include 'includes/navigation.html' %}
+  {% endblock header %}
+
+  <!-- [ Main Content ] start -->
+  <div class="pcoded-main-container">
+    <div class="pcoded-wrapper">
+      <div class="pcoded-content">
+        <div class="pcoded-inner-content">
+
+          {% block breadcrumbs %}
+          {% include 'includes/breadcrumbs.html' %}
+          {% endblock breadcrumbs %}
+
+          <div class="main-body">
+            <div class="page-wrapper">
+              {% block content %}{% endblock content %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    document.querySelector('head').insertAdjacentHTML("beforeend", '<link rel="stylesheet" class="layout-css" href="">');
+
+    if ('{{ request.user.profile.dark_mode }}' === 'True') {
+      removeClassByPrefix(document.querySelector(".pcoded-navbar"), 'menu-');
+      document.querySelector(".pcoded-navbar").classList.add("navbar-dark");
+      document.querySelector(".layout-css").setAttribute('href', '{% static 'assets / css / layouts / dark.css' %}');
+    } else {
+      document.querySelector(".layout-css").setAttribute('href', '');
+    }
+
+    function removeClassByPrefix(node, prefix) {
+      for (let i = 0; i < node.classList.length; i++) {
+        let value = node.classList[i];
+        if (value.startsWith(prefix)) {
+          node.classList.remove(value);
+        }
+      }
+    }
+    function getDaysInMonth(month, year) {
+      return new Date(year, month, 0).getDate();
+    }
+
+    function toggleFields(selectElement, taskId) {
+      const dayOfWeekField = document.getElementById(`day-of-week-${taskId}`);
+      const dateOfMonthField = document.getElementById(`date-of-month-${taskId}`);
+      const dateInput = dateOfMonthField.querySelector('input[name="day_of_month"]');
+
+      if (selectElement.value === "monthly") {
+        dayOfWeekField.style.display = "none";
+        dateOfMonthField.style.display = "table-cell";
+
+        // Get the current month and year
+        const now = new Date();
+        const currentMonth = now.getMonth(); // 0-based index (0 for January, 11 for December)
+        const currentYear = now.getFullYear();
+
+        // Calculate the number of days in the current month
+        const daysInMonth = getDaysInMonth(currentMonth + 1, currentYear);
+
+        // Update the max attribute of the day input field
+        dateInput.max = daysInMonth;
+
+        // Check if the current value is greater than the number of days in the month
+        if (parseInt(dateInput.value, 10) > daysInMonth) {
+          dateInput.value = 0;
+        }
+      } else {
+        dayOfWeekField.style.display = "table-cell";
+        dateOfMonthField.style.display = "none";
+      }
+    }
+
+  </script>
+
+  {% include 'includes/scripts.html' %}
+
+  {% block fixed_plugin %}
+  {% include 'includes/fixed-plugin.html' %}
+  {% endblock fixed_plugin %}
+
+  {% block extra_js %}{% endblock extra_js %}
+
+
+</body>
+
+</html>

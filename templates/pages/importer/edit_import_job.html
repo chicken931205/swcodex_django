@@ -1,0 +1,88 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    .form-label {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .form-control {
+        width: 100%;
+    }
+    .schedule-days-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    @media (min-width: 768px) {
+        .schedule-days-container {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+    .form-check-label {
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock extrastyle %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Edit Import Job</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.raw_data_file.id_for_label }}" class="form-label">File Name:</label>
+                    {{ form.raw_data_file }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.table_name.id_for_label }}" class="form-label">Table Name:</label>
+                    {{ form.table_name }}
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-group">
+                    <label for="{{ form.column_names.id_for_label }}" class="form-label">Column Names (comma-separated):</label>
+                    {{ form.column_names }}
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-group">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">Description:</label>
+                    {{ form.description }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.schedule_time.id_for_label }}" class="form-label">Schedule Time:</label>
+                    {{ form.schedule_time }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label class="form-label">Schedule Days:</label>
+                    <div class="schedule-days-container">
+                        {% for day in form.schedule_days %}
+                            <div class="form-check">
+                                {{ day.tag }}
+                                <label class="form-check-label" for="{{ day.id_for_label }}">
+                                    {{ day.choice_label }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 mt-4">
+                <button type="submit" class="btn btn-primary">Update Import Job</button>
+                <a href="{% url 'importer:import_job_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

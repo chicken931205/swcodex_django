@@ -1,0 +1,62 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container">
+    <h2>Data Viewer</h2>
+    <p>To search for null values, type "null" in the search box. For non-null values, type "not null".</p>
+    <table id="dataTable" class="display">
+        <thead>
+            <tr>
+                {% for column in columns %}
+                    <th>{{ column }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tfoot>
+            <tr>
+                {% for column in columns %}
+                    <th>
+                        <input type="text" placeholder="Search {{ column }}" />
+                    </th>
+                {% endfor %}
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}
+{% block extra_js %}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
+<script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
+<script>
+    $(document).ready(function() {
+        var table = $('#dataTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: '{% url "reports:data_viewer" %}',
+                type: 'GET'
+            },
+            columns: [
+                {% for column in columns %}
+                    { data: '{{ column }}' },
+                {% endfor %}
+            ],
+            pageLength: 50,
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]]
+        });
+
+        // Apply the search
+        table.columns().every(function () {
+            var that = this;
+            $('input', this.footer()).on('keyup change clear', function () {
+                if (that.search() !== this.value) {
+                    that
+                        .search(this.value)
+                        .draw();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
